@@ -19,7 +19,7 @@
         register: post_app_connect
     rescue:
       - import_role:
-          name: common_utilities
+          name: bulk_common_utilities
           tasks_from: logging
         vars:
           exception: "{{ post_app_connect }}"

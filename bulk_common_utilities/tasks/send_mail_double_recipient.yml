@@ -12,12 +12,19 @@
                 "subject": "{{ mail_subject }}",
                 "body": {
                 "contentType": "Text",
-                "content": '{{ mail_content }}'
+                "content": "{{ mail_content }}"
                 },
                 "toRecipients": [
                 {
                     "emailAddress": {
                     "address": "{{ to_email_address }}"
+                    }
+                }
+                ],
+                "ccRecipients": [ 
+                {
+                    "emailAddress": {
+                    "address": "{{ cc_email_address1 }}"
                     }
                 }
                 ],
@@ -34,3 +41,4 @@
     validate_certs: false
     status_code: 202
   delegate_to: localhost
+

@@ -12,9 +12,9 @@
         body: |-
           {
             "accountEnabled": true,
-            "city": "{{ user_packet.future_city_name }}",
-            "country": "{{ user_packet.future_country_name }}",
-            "department": "{{ user_packet.future_department_code }}",
+            "city": "{{ user_packet.future_city }}",
+            "country": "{{ user_packet.future_country }}",
+            "department": "{{ user_packet.future_department_name }}",
             "jobTitle": "{{ user_packet.future_job_title }}",
             "officeLocation": "{{ user_packet.future_office_location }}",
             "preferredLanguage": "en-US"
@@ -88,10 +88,10 @@
   when: last_iteration_count
 
 - set_fact:
-      bulk_mail_worklog: "{{bulk_mail_worklog}}\n{{user_sequence_count}}.{{user_transfer_result}}:{{userName}}"
+      bulk_mail_worklog: "{{bulk_mail_worklog}}\n{{user_sequence_count}}. {{user_transfer_result}} : {{userName}}"
 
 - set_fact:
-    bulk_mail_worklog: "{{ group_ids | regex_replace('^,', '') }}"
+    bulk_mail_worklog: "{{ bulk_mail_worklog | regex_replace('^,', '') }}"
 
 # Updating "req_transfer_user" RITM
 - name: Update RITM for "req_transfer_user"
@@ -100,8 +100,8 @@
     tasks_from: ritm_status_update
   when: ritm_details.req_transfer_user is defined and last_iteration_count
   vars:
-    ritm_req_number: "{{ user_transfer_result_worknotes }}"
-    work_notes_status_msg: 
+    ritm_req_number: "{{ ritm_details.req_transfer_user }}"
+    work_notes_status_msg: "{{ user_transfer_result_worknotes }}"
     Status: "{{ user_transfer_req_status }}"
 
 # Updating Software Groups and DL
@@ -128,15 +128,25 @@
         statusMsg: "Failure while fetching Current Groups for User {{ UserName }}"
         is_all_task_success: "No"
 
+        #Initialising Variables        
 - set_fact:
     mover_group_names: ""
 
 - set_fact:
-    current_groups: "{{ get_group_memberOf_details.json.value }}"
-  when: userid != ""
+    group_name_add_snow: ""
 
 - set_fact:
     new_list: ""
+
+- set_fact:
+    group_name_update_snow: ""
+
+    #- set_fact:
+    #group_ids_to_delete: ""
+
+- set_fact:
+    current_groups: "{{ get_group_memberOf_details.json.value }}"
+  when: userid != ""
 
 - set_fact:
      new_list: "{{new_list}},{{item.id}}"
@@ -169,7 +179,7 @@
   when: userid != ""
 
 - set_fact:
-    group_name_update_snow: "{{ mover_group_names | reject('match',default_group)| list}}"
+    group_name_update_snow: "{{ mover_group_names | reject('match',user_packet.default_group)| list}}"
   when: userid != ""
 
 # Added to get the Added Group Names
@@ -178,7 +188,7 @@
   when: userid != ""
   
 - set_fact:
-     add_group_names: "{{ add_group_names }},{{item.displayName}}"
+     add_group_names: "{{ add_group_names }},{{item.software_group}}"
   loop: "{{ user_packet.software_groups }}"
   when: userid != ""
 
@@ -191,9 +201,10 @@
   when: userid != ""
 
 - set_fact:
-    group_name_add_snow: "{{ add_group_names | reject('match',default_group)| list}}"
+    group_name_add_snow: "{{ add_group_names | reject('match',user_packet.default_group)| list}}"
   when: userid != ""
 
+# Removing users from Groups  
 - name: Delete from groups the user belongs to.
   block:
     - uri:
@@ -258,15 +269,15 @@
         status: "{{ Failed_state }}"
 
 - set_fact:
-    add_group_result: "skipped"
+    add_group_result: "Skipped"
   when: userid == ""
 
 - set_fact:
-    group_name_update_snow: "skipped"
+    group_name_update_snow: "Skipped"
   when: userid == ""
 
 - set_fact:
-    group_name_add_snow: "skipped"
+    group_name_add_snow: "Skipped"
   when: userid == ""
 
 - set_fact:
@@ -315,7 +326,7 @@
 - name: Add member to vpn
   block:
     - uri:
-        url: "{{ ms_graph_uri }}/v1.0/groups/{{item}}/members/$ref"
+        url: "{{ ms_graph_uri }}/v1.0/groups/{{vpn_id}}/members/$ref"
         method: POST
         return_content: yes
         headers:
@@ -329,7 +340,6 @@
         validate_certs: false
         status_code: 204
       register: add_vpnmembership
-      loop: "{{ vpn_id}}"
     - set_fact:
           add_vpn_result: "Successful"
   when: (ritm_details.req_software is defined or ritm_details.req_distribution_list is defined) and userid != ""
@@ -351,14 +361,14 @@
   when: userid == ""
 
 - set_fact:
-       vpn_add_worknotes: "{{vpn_add_worknotes}}\n{{user_sequence_count}}. {{userName}}, Added to VPN: {{user_packet.vpn}} "
+       vpn_add_worknotes: "{{vpn_add_worknotes}}\n{{user_sequence_count}}. {{userName}}, {{ add_vpn_result }} in adding to VPN: {{user_packet.vpn}} "
 
 - set_fact:
         vpn_add_req_status: "{% if vpn_add_worknotes.find('Error') != -1 %}{{ Failed_state }}{% else %}{{ State }}{% endif %}"
   when: last_iteration_count
 
 - set_fact:
-      bulk_mail_worklog: "{{bulk_mail_worklog}}, Added to VPN: {{user_packet.vpn}}"
+      bulk_mail_worklog: "{{bulk_mail_worklog}}, {{ add_vpn_result }} in adding to VPN: {{user_packet.vpn}}"
 
 # Updating RITM for VPN Access
 - name: Update RITM for updating user VPN Access
@@ -377,48 +387,50 @@
   import_role:
     name: bulk_common_utilities
     tasks_from: ritm_status_update
-  when: ritm_details.hardware_request is defined and last_iteration_count
+  when: ritm_details.req_hardware_request is defined and last_iteration_count
   vars:
-    ritm_req_number: "{{ ritm_details.hardware_request }}"
+    ritm_req_number: "{{ ritm_details.req_hardware_request }}"
     work_notes_status_msg: "Hardware Request Completed"
-    Status: "{{ Status }}"
+    Status: "{{ State }}"
 
 - set_fact:
     req_status: "{% if user_transfer_result_worknotes.find('Error') != -1 or dl_software_folder_worknotes.find('Error') != -1 or vpn_add_worknotes.find('Error') != -1 %}{{ Failed_state }}{% else %}{{ State }}{% endif %}"
   when: last_iteration_count
 
 - set_fact:
-    req_worknotes: "{% if req_status == State %}Users Moved Successfully{ % else %}Unable to close REQ, Please check open RITM's for more details{% endif %}"
+    req_worknotes: "{% if req_status == '3' %}Users Moved Successfully{% else %}Unable to close REQ, Please check open RITM's for more details{% endif %}"
   when: last_iteration_count
 
 #Sending email to User and Current Manager
 - name: Email to mover on successfull movement
   import_role:
-    name: common_utilities
-    tasks_from: send_mail_single_recipient
+    name: bulk_common_utilities
+    tasks_from: send_mail_double_recipient
   vars:
-    mail_content: "{{ bulk_mail_mover_requestor }}"
-    to_email_address: "{{ manager_email }},{{ user_packet.mover_email }}"
-  when: last_iteration_count
+    mail_content: "{{ bulk_mail_mover_user }}"
+    to_email_address: "{{ user_packet.mover_email }}"
+    cc_email_address1: "{{ manager_email }}"
+  when: userid != ""  
 
 # Updating REQ 
 - name: Update SNOW req for Mover
   import_role:
-    name: common_utilities
+    name: bulk_common_utilities
     tasks_from: snow_status_update
   when: req_no is defined and last_iteration_count
   vars:
     ritm_req_number: "{{ req_no }}"
     work_notes_status_msg: "{{ req_worknotes}}"
-    Status: "{{ req_state}}"
+    Status: "{{ req_status }}"
 
 #Sending email to Requester and Future Manager
 - name: Email to mover on successfull movement
   import_role:
-    name: common_utilities
-    tasks_from: send_mail_single_recipient
+    name: bulk_common_utilities
+    tasks_from: send_mail_double_recipient
   vars:
     mail_content: "{{ bulk_mail_mover_requestor }}"
-    to_email_address: "{{ user_packet.future_manager }},{{ requester_email }}"
+    to_email_address: "{{ requestor_email }}"
+    cc_email_address1: "{{ user_packet.future_manager_email }}"
   when: last_iteration_count
 

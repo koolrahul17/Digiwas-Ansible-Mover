@@ -18,7 +18,7 @@
                index_var: user_count
        when: cartridge_form_id == 'JOINER_BULK'
 
-      - include_role:
+     - include_role:
           name: bulk_mso_mover
        vars:
          user_packet: "{{ outer_item }}"

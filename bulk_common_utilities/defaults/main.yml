@@ -13,9 +13,9 @@ failedState: 1
 update_status_uri: "PuOezo/UpdateServicenowTicket/updateservicerequest"
 
 # domain information // Updated
-domain: "dws-ipa.com",
-admin_user: "DigiWas-No-Reply@dws-ipa.com",
-default_noreply_mailbox: "DigiWas-No-Reply@dws-ipa.com",
+domain: "dws-ipa.com"
+admin_user: "DigiWas-No-Reply@dws-ipa.com"
+default_noreply_mailbox: "DigiWas-No-Reply@dws-ipa.com"
 
 password_len: 4
 password_no_of_upper_char: 1
@@ -257,7 +257,7 @@ bulk_mail_mover_user: |-
 
   Good Day!!
 
-  We have granted the user account – {{ mover_name }}@{{ exchange_domain }}
+  We have granted the user account – {{ user_packet.mover_name }}@{{ exchange_domain }}
 
   New Business Unit : {{user_packet.future_business_unit}}
 

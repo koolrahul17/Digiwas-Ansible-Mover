@@ -7,7 +7,7 @@
   when: cartridge_form_id == 'MOVER_BULK' # new set_fact added
 
 - set_fact:
-     distribution_list: "{{user_packet.futute_distribution_list}}"
+     distribution_list: "{{user_packet.future_distribution_list}}"
   when: cartridge_form_id == 'MOVER_BULK' # new set_fact added
 
 - set_fact:
@@ -17,6 +17,9 @@
 - debug:
       msg: "{{user_employee_id}}"
   when: user_employee_id is defined
+
+- set_fact:
+      userid: "" # new added
 
 - name: Get Employee information using Employee Number
   block:
@@ -48,10 +51,9 @@
   when: cartridge_form_id != 'JOINER_BULK'
   ignore_errors: yes #if no user exists with the employee ID mentioned in the payload, ignore the error and do not create userid variable
 
-
 - set_fact: 
     userName: "{{user_id.json.value[0].userPrincipalName}}"
-  when: cartridge_form_id != 'JOINER_BULK' and userid is defined
+  when: cartridge_form_id != 'JOINER_BULK' and userid != "" # changed defined to !=
 
 
 - name: Get Group ids for passed software groups
@@ -105,7 +107,7 @@
 - name: Get Id for VPN ## Added for Movers - VPN request
   block:
     - uri:
-        url: "{{ groups_uri }}?$filter=displayName%20eq%20'{{ user_packet.future_vpn }}'&$select=id"
+        url: "{{ groups_uri }}?$filter=displayName%20eq%20'{{ user_packet.vpn }}'&$select=id"
         method: GET
         return_content: yes
         headers:
@@ -113,7 +115,7 @@
           Authorization: "Bearer {{ ms_online_access_token }}"
         validate_certs: false
         status_code: 200
-      register: vpn_id
+      register: vpn_group_data
   when: ritm_details.req_vpn is defined and cartridge_form_id == 'MOVER_BULK'
   rescue:
     - include_tasks: logging.yml
@@ -123,6 +125,10 @@
         is_all_task_success: "No"
         statusMsg: "Failure while fetching id for VPN Group"
         status: "{{ Failed_state }}"
+
+- set_fact: ## Added for Movers - VPN request
+    vpn_id: "{{ vpn_group_data.json.value[0].id }}"
+  when: ritm_details.req_vpn is defined and cartridge_form_id == 'MOVER_BULK'
 
 - name: Get Id for Default group # Updated label for default group
   block:
